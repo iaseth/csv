@@ -160,11 +160,31 @@ func jsonObjects(rows [][]string) ([]map[string]string, error) {
 }
 
 func main() {
+	// add shortcuts before parsing
+	flag.BoolVar(flagJSON, "j", false, "Shortcut for --json")
+	flag.BoolVar(flagMarkdown, "m", false, "Shortcut for --markdown")
+
 	flag.Parse()
-	files := flag.Args()
+
+	// Allow flags anywhere
+	rawArgs := flag.Args()
+	files := make([]string, 0, len(rawArgs))
+
+	for _, a := range rawArgs {
+		switch a {
+		case "--json", "-j":
+			*flagJSON = true
+		case "--markdown", "-m":
+			*flagMarkdown = true
+		case "--overwrite":
+			*flagOverwrite = true
+		default:
+			files = append(files, a)
+		}
+	}
 
 	if len(files) == 0 {
-		fmt.Println("Usage: csvfmt [--overwrite] [--json] [--markdown] file1.csv [...]")
+		fmt.Println("Usage: csv [--overwrite] [--json|-j] [--markdown|-m] file.csv [...]")
 		os.Exit(1)
 	}
 
@@ -172,7 +192,7 @@ func main() {
 		rows, err := readCSV(path)
 		must(err)
 
-		// JSON: array of objects using header as keys
+		// JSON output
 		if *flagJSON {
 			objs, err := jsonObjects(rows)
 			must(err)
@@ -181,16 +201,15 @@ func main() {
 			continue
 		}
 
-		// Markdown
+		// Markdown output
 		if *flagMarkdown {
 			fmt.Println(formatMarkdown(rows))
 			continue
 		}
 
-		// Pretty
+		// Pretty output
 		out := formatPretty(rows)
 
-		// Overwrite CSV (still valid CSV, just trimmed)
 		if *flagOverwrite {
 			err := writeCSV(path, rows)
 			must(err)
